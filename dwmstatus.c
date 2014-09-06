@@ -12,6 +12,9 @@
 
 #include <X11/Xlib.h>
 
+#include <batterystat.c>
+
+char *tzeastern = "America/New_York";
 char *tzargentina = "America/Buenos_Aires";
 char *tzutc = "UTC";
 char *tzberlin = "Europe/Berlin";
@@ -92,6 +95,26 @@ loadavg(void)
 	return smprintf("%.2f %.2f %.2f", avgs[0], avgs[1], avgs[2]);
 }
 
+char *
+getnet(void)
+{
+  FILE *fp;
+  char netid[40];
+  int len;
+
+  fp = popen("iwgetid | awk {'print $2'} | sed 's/ESSID:\"//g' | sed 's/\"//g'","r");
+  fgets(netid, sizeof(netid),fp);
+  pclose(fp);
+  if(netid[1] == NULL){
+    return "Not Connected";
+  }else{
+    len = strlen(netid);
+    if( netid[len-1] == '\n' )
+          netid[len-1] = 0;
+    return strcat(netid, " Connected");
+  }
+}
+
 int
 main(void)
 {
@@ -100,20 +123,25 @@ main(void)
 	char *tmar;
 	char *tmutc;
 	char *tmbln;
+  char *tmeast;
+  char *batt;
+  char *net;
 
 	if (!(dpy = XOpenDisplay(NULL))) {
 		fprintf(stderr, "dwmstatus: cannot open display.\n");
 		return 1;
 	}
 
-	for (;;sleep(90)) {
+	for (;;sleep(60)) {
 		avgs = loadavg();
-		tmar = mktimes("%H:%M", tzargentina);
-		tmutc = mktimes("%H:%M", tzutc);
-		tmbln = mktimes("KW %W %a %d %b %H:%M %Z %Y", tzberlin);
+		tmar = mktimes("%I:%M", tzargentina);
+		tmutc = mktimes("%I:%M", tzutc);
+		tmeast = mktimes("%I:%M", tzeastern);
+		tmbln = mktimes("KW %W %a %d %b %R:%M %Z %Y", tzberlin);
+    batt = getbattery();
+    net = getnet();
 
-		status = smprintf("L:%s A:%s U:%s %s",
-				avgs, tmar, tmutc, tmbln);
+		status = smprintf("::[ %s ]::[ BATT: %s ]::[ %s ]::", tmeast, batt,net);
 		setstatus(status);
 		free(avgs);
 		free(tmar);
